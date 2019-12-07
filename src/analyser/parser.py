@@ -1,7 +1,7 @@
 import sys
 import typing
 from tokenizer import Token, TokenType
-from exception.analyser_exceptions import *
+from exception.parser_exceptions import *
 from analyser.ast import Ast, AstType
 
 is_debug = False

@@ -1,4 +1,4 @@
-from exception.analyser_exceptions import AstException
+from exception.parser_exceptions import AstException
 from tokenizer import Token
 from typing import List
 
