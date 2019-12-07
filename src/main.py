@@ -11,7 +11,7 @@ if __name__ == '__main__':
         print(tok)
     try:
         ast = Analyser(tokens).ast
-        ast.draw()
+        ast.draw(draw_full_ast=False)
     except AnalyserException as e:
         print(e)
         print('Source code: ' + tkz.source[e.row], end='')

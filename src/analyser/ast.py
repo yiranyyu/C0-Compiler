@@ -1,5 +1,6 @@
 from exception.analyser_exceptions import AstException
 from tokenizer import Token
+from typing import List
 
 
 class ConsoleColors:
@@ -85,7 +86,7 @@ class Ast(object):
                 raise AstException(f'Cannot init {ast_type} Ast with token')
         self.type = ast_type
         self.token: Token = token
-        self.children = []
+        self.children: List[Ast] = []
         # print(f'==>[Parsing] {self.type}')
 
     def add_child(self, ast):
@@ -94,20 +95,34 @@ class Ast(object):
     def get_children(self):
         return self.children
 
-    def draw(self):
-        print(self.__draw_iter(indent=0))
+    def draw(self, draw_full_ast=False):
+        print(self.__draw_iter(indent=0, draw_full_ast=draw_full_ast))
 
-    def __draw_iter(self, indent: int, islast=False):
+    def __draw_iter(self, indent: int, islast=False, draw_full_ast=False):
         string = ''
-        if self.token is None:
+        if self.type == AstType.STATEMENT and len(self.children) == 1 and not draw_full_ast:
+            string += self.children[0]._Ast__draw_iter(indent=indent,
+                                                       islast=islast,
+                                                       draw_full_ast=draw_full_ast)
+        elif self.token is None:
             string += f'{" " * indent}{"`-" if islast else "|-"}{get_level_color(indent)}{self.type.lower()}{ConsoleColors.END}\n'
-            for idx, child in enumerate(self.children):
+            if len(self.children) == 1 and not draw_full_ast:
+                children = self.children
+                while True:
+                    if len(children[0].children) != 1:
+                        break
+                    children = children[0].children
                 string += ' ' * indent
-                lines = child._Ast__draw_iter(
-                    indent=indent + 1, islast=(idx == len(self.children) - 1)).split('\n')
-                lines = [(line[:indent] + line[indent:])
-                         for line in lines if line]
-                string += '\n'.join(lines) + '\n'
+                string += children[0]._Ast__draw_iter(indent=indent+1,
+                                                      islast=True,
+                                                      draw_full_ast=draw_full_ast)
+            else:
+                for idx, child in enumerate(self.children):
+                    islast = idx == len(self.children) - 1
+                    string += ' ' * indent
+                    string += child._Ast__draw_iter(indent=indent + 1,
+                                                    islast=islast,
+                                                    draw_full_ast=draw_full_ast)
         else:
             string += f'{" " * indent}|-{get_level_color(indent)}token{ConsoleColors.END} @type={self.token.tok_type}, {ConsoleColors.FAIL}@value={repr(self.token.value)}{ConsoleColors.END}\n'
         return string
