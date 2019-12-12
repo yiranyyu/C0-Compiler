@@ -4,11 +4,9 @@ from tokenizer import TokenType
 
 
 class SymbolAttrs(object):
-    VALUE = 'VALUE'
     CONSTNESS = 'CONSTNESS'
     OFFSET = 'OFFSET'
     SIZE = 'SIZE'
-    IS_FUNC = 'IS_FUNC'
 
     # corresponding value must be one of `TokenType.types`
     TYPE = 'TYPE'
@@ -22,7 +20,7 @@ class SymbolAttrs(object):
 type_to_size = {
     TokenType.INT: 1,
     TokenType.DOUBLE: 2,
-    TokenType.CHAR: 2,
+    TokenType.CHAR: 1,
 }
 
 
@@ -31,10 +29,11 @@ def get_type_size(attrs: dict) -> int:
     return type_to_size[type_]
 
 
-class LevelSymbolTable(object):
-    def __init__(self):
+class ScopeLevelSymbolTable(object):
+    def __init__(self, base_offset: int, stack_level):
         self.symbols: Dict[str, dict] = {}
-        self.next_offset = 0
+        self.next_offset = base_offset
+        self.stack_level = stack_level
 
     def add_symbol(self, symbol_name: str, attrs: dict):
         """
@@ -47,8 +46,6 @@ class LevelSymbolTable(object):
 
         attrs[SymbolAttrs.SIZE] = get_type_size(attrs)
         attrs[SymbolAttrs.OFFSET] = self.next_offset
-        if SymbolAttrs.IS_FUNC not in attrs:
-            attrs[SymbolAttrs.IS_FUNC] = False
 
         self.next_offset += attrs[SymbolAttrs.SIZE]
         self.symbols[symbol_name] = attrs
@@ -68,15 +65,24 @@ class LevelSymbolTable(object):
     def __contains__(self, symbol_name: str) -> bool:
         return symbol_name in self.symbols
 
+    def __str__(self):
+        output = 'LevelSymbolTable {\n'
+        for symbol, attrs in self.symbols.items():
+            output += f'{symbol}: {attrs}\n'
+        output += '}'
+        return output
+
 
 class SymbolTable(object):
     def __init__(self):
         # [cur_level, prev_level, ..., global_level]
-        self.level_tables: List[LevelSymbolTable] = []
+        self.level_tables: List[ScopeLevelSymbolTable] = []
 
     def __assert_contains(self, symbol_name: str):
-        if symbol_name not in self.level_tables:
-            raise SymbolNotFound(symbol_name)
+        for table in self.level_tables:
+            if symbol_name in table:
+                return
+        raise SymbolNotFound(symbol_name)
 
     def add_symbol(self, symbol_name: str, attrs: dict = None):
         """
@@ -87,6 +93,7 @@ class SymbolTable(object):
         if attrs is None:
             attrs = {}
         self.current_level().add_symbol(symbol_name, attrs)
+        # print(f'After add {symbol_name}, symbol_table is:\n{self}')
 
     def update_symbol(self, symbol_name: str, key: str, value):
         self.__assert_contains(symbol_name)
@@ -100,16 +107,9 @@ class SymbolTable(object):
             if symbol_name in table:
                 return table.get_symbol_attr(symbol_name, key)
 
-    def is_function(self, symbol_name: str):
-        self.__assert_contains(symbol_name)
-        table = self.level_tables[-1]
-        if symbol_name in table:
-            return table.get_symbol_attr(symbol_name, SymbolAttrs.IS_FUNC)
-        raise
-
     def is_const(self, symbol_name: str) -> bool:
         self.__assert_contains(symbol_name)
-        for idx, table in enumerate(self.level_tables):
+        for table in self.level_tables:
             if symbol_name in table:
                 return table.get_symbol_attr(symbol_name, SymbolAttrs.CONSTNESS)
 
@@ -120,7 +120,8 @@ class SymbolTable(object):
         self.__assert_contains(symbol_name)
         for idx, table in enumerate(self.level_tables):
             if symbol_name in table:
-                return idx, table.get_symbol_attr(symbol_name, SymbolAttrs.OFFSET)
+                stack_diff = self.current_level().stack_level - table.stack_level
+                return stack_diff, table.get_symbol_attr(symbol_name, SymbolAttrs.OFFSET)
 
     def get_size(self, symbol_name: str):
         self.__assert_contains(symbol_name)
@@ -140,13 +141,21 @@ class SymbolTable(object):
             if symbol_name in table:
                 return table.get_symbol_info(symbol_name)
 
-    def current_level(self) -> LevelSymbolTable:
-        return self.level_tables[-1]
+    def current_level(self) -> ScopeLevelSymbolTable:
+        return self.level_tables[0]
 
-    def enter_level(self):
-        self.level_tables.insert(0, LevelSymbolTable())
+    def enter_level(self, new_stack: bool = False):
+        # print(f'Enter level, prev {len(self.level_tables)} tables')
+        if not self.level_tables:
+            base_offset = 0
+            stack_level = 0
+        else:
+            base_offset = 0 if new_stack else self.current_level().next_offset
+            stack_level = (1 if new_stack else 0) + self.current_level().stack_level
+        self.level_tables.insert(0, ScopeLevelSymbolTable(base_offset, stack_level))
 
     def exit_level(self):
+        # print(f'Exit level, prev {len(self.level_tables)} tables')
         self.level_tables.pop(0)
 
     def __contains__(self, symbol_name: str) -> bool:
@@ -154,3 +163,11 @@ class SymbolTable(object):
             if symbol_name in table:
                 return True
         return False
+
+    def __str__(self):
+        output = ''
+        for level, table in enumerate(reversed(self.level_tables)):
+            level_output = str(table)
+            lines = [line for line in level_output.split('\n') if line]
+            output += '\n'.join(('  ' * level + line) for line in lines) + '\n'
+        return output
