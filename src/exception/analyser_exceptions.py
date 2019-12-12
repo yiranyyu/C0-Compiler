@@ -8,22 +8,17 @@ class AnalyserException(Exception):
 
 class ConstantNotInitialized(AnalyserException):
     def __init__(self, pos: tuple):
-        super().__init__(pos, f'Constant variable not initialzed')
+        super().__init__(pos, f'Constant variable not initialized')
 
 
 class DuplicateSymbol(AnalyserException):
-    def __init__(self, pos: tuple):
-        super().__init__(pos, f'')
+    def __init__(self, pos: tuple, symbol_name):
+        super().__init__(pos, f'{symbol_name} already defined at current scope')
 
 
 class UndefinedSymbol(AnalyserException):
     def __init__(self, pos: tuple, symbol_name: str):
         super().__init__(pos, f'Symbol {symbol_name} is not declared before reference.')
-
-
-class InvalidArgumentDeclaration(AnalyserException):
-    def __init__(self, pos: tuple):
-        super().__init__(pos, f'')
 
 
 class NoReturnValueForNotVoidFunction(AnalyserException):
@@ -48,7 +43,7 @@ class ReturnValueForVoidFunction(AnalyserException):
 
 class MissingMain(AnalyserException):
     def __init__(self, pos: tuple):
-        super().__init__(pos, f'')
+        super().__init__(pos, f'`main` not defined, which is compulsory in C0')
 
 
 class AssignToConstant(AnalyserException):
@@ -77,5 +72,10 @@ class NotSupportedFeature(AnalyserException):
 
 
 class VoidTypeCalculationNotSupported(AnalyserException):
-    def __init__(self, pos):
+    def __init__(self, pos: tuple):
         super().__init__(pos, f'Cannot calculate with void type')
+
+
+class FunctionRedefinitionException(AnalyserException):
+    def __init__(self, pos: tuple, func_name: str):
+        super().__init__(pos, f'function {func_name} already defined')
