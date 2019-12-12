@@ -1,4 +1,4 @@
-from analyser.parser import C0ASTParser, Ast, AstType
+from analyser.parser import C0ASTParser, AstType
 from analyser.ast import Ast
 from analyser.symbol_table import SymbolTable, SymbolAttrs
 from tokenizer import Token, TokenType
@@ -9,17 +9,15 @@ from typing import List, Tuple, Any
 
 
 def assert_ast_type(ast: Ast, assertion_type: str):
-    assert ast.type == assertion_type, f'Expected ast of type {assertion_type}, but received {ast.type}'
+    if ast.type != assertion_type:
+        ast.draw()
+        assert False, f'Expected ast of type {assertion_type}, but received {ast.type}'
 
 
 def get_pos(ast: Ast):
     if ast.token is not None:
         return ast.token.st_pos
-    for child in ast.children:
-        pos = get_pos(child)
-        if pos is not None:
-            return pos
-    return None
+    return get_pos(ast.first_child())
 
 
 class Analyser(object):
@@ -59,6 +57,9 @@ class Analyser(object):
             else:
                 self.__analyse_function_definition(child)
 
+        if not self.elf.has_function("main"):
+            raise MissingMain(get_pos(ast))
+
     def __analyse_variable_declaration(self, ast: Ast):
         """
         <variable-declaration> ::=
@@ -76,7 +77,7 @@ class Analyser(object):
             SymbolAttrs.CONSTNESS: constness,
             SymbolAttrs.TYPE: type_
         }
-        self.__analyse_init_declarator_list(ast.children[-1], type_info)
+        self.__analyse_init_declarator_list(ast.children[-2], type_info)
 
     def __analyse_function_definition(self, ast: Ast):
         """
@@ -87,13 +88,35 @@ class Analyser(object):
 
         return_type = self.__analyse_type_specifier(ast.first_child())
         func_name = self.__analyse_identifier(ast.children[1])
-        self.elf.add_function(return_type, func_name)
+        if self.elf.has_function(func_name):
+            raise FunctionRedefinitionException(
+                get_pos(ast.children[1]), func_name)
+
+        idx = self.elf.add_constant(Constant.STR, func_name)
+        self.elf.add_function(return_type, func_name, idx)
 
         # put parameters and function body in a same new scope
-        self.symbol_table.enter_level()
+        self.symbol_table.enter_level(new_stack=True)
         param_count = self.__analyse_parameter_clause(ast.children[2])
         self.elf.current_function().param_count = param_count
-        self.__analyse_compound_statement(ast.children[3], enter_level=False)
+        statements_info = self.__analyse_compound_statement(
+            ast.children[3], enter_level=False)
+
+        if 'return' not in statements_info and return_type != TokenType.VOID:
+            print(statements_info)
+            raise NoReturnValueForNotVoidFunction(get_pos(ast.children[3]))
+
+        # Bad code, but I don't want to cost too much on this `control-flow` tracing work
+        # which is definitely too complicated.
+        if return_type == TokenType.VOID:
+            self.add_inst(PCode.RET)
+        elif return_type == TokenType.DOUBLE:
+            self.add_inst(PCode.IPUSH, 0)
+            self.add_inst(PCode.I2D)
+            self.add_inst(PCode.DRET)
+        else:
+            self.add_inst(PCode.IPUSH, 0)
+            self.add_inst(PCode.IRET)
 
     def __analyse_type_specifier(self, ast: Ast) -> str:
         """
@@ -175,6 +198,8 @@ class Analyser(object):
         assert_ast_type(ast, AstType.INIT_DECLARATOR)
 
         symbol_name = self.__analyse_identifier(ast.first_child())
+        if symbol_name in self.symbol_table.current_level():
+            raise DuplicateSymbol(get_pos(ast.first_child()), symbol_name)
         self.symbol_table.add_symbol(symbol_name, type_info.copy())
 
         symbol_type = self.symbol_table.get_type(symbol_name)
@@ -235,7 +260,7 @@ class Analyser(object):
                 `CHAR` iff expression is consisted of single char-literal or char-variable,
                 `INT` or `DOUBLE` (`CHAR` promoted to `INT`) for any other case
         """
-        assert_ast_type(ast, AstType.ADDITIVE_EXPRESSION)
+        assert_ast_type(ast, AstType.EXPRESSION)
 
         add_expr = ast.first_child()
         expr_type, _ = self.__analyse_additive_expression(add_expr)
@@ -270,7 +295,7 @@ class Analyser(object):
                 r_type = TokenType.INT
 
             # make l_type and r_type fit
-            if r_type != l_type:
+            if l_type != r_type:
                 # `int` op `double`
                 if l_type == TokenType.INT:
                     l_type = TokenType.DOUBLE
@@ -323,7 +348,7 @@ class Analyser(object):
                 r_type = TokenType.INT
 
             # make l_type and r_type fit
-            if r_type != l_type:
+            if l_type != r_type:
                 # `int` op `double`
                 if l_type == TokenType.INT:
                     l_type = TokenType.DOUBLE
@@ -440,9 +465,13 @@ class Analyser(object):
             symbol_name = self.__analyse_identifier(ast.first_child())
             if symbol_name not in self.symbol_table:
                 raise UndefinedSymbol(get_pos(ast.first_child()), symbol_name)
-            offset = self.symbol_table.get_offset(symbol_name)
-            self.add_inst(PCode.LOADA, *offset)
-            self.add_inst(PCode.ILOAD)
+            symbol_offset = self.symbol_table.get_offset(symbol_name)
+            symbol_type = self.symbol_table.get_type(symbol_name)
+            self.add_inst(PCode.LOADA, *symbol_offset)
+            if symbol_type in [TokenType.INT, TokenType.CHAR]:
+                self.add_inst(PCode.ILOAD)
+            elif symbol_type == TokenType.DOUBLE:
+                self.add_inst(PCode.DLOAD)
             return self.symbol_table.get_type(symbol_name), None
 
         elif child_type == AstType.INTEGER_LITERAL:
@@ -490,7 +519,8 @@ class Analyser(object):
 
         param_count = self.elf.function_param_count(func_name)
         if arg_count != param_count:
-            raise ArgumentsNumberNotMatchException(get_pos(ast.children[1]), param_count, arg_count)
+            raise ArgumentsNumberNotMatchException(
+                get_pos(ast.children[1]), param_count, arg_count)
 
         func_id = self.elf.function_index(func_name)
         self.add_inst(PCode.CALL, func_id)
@@ -507,7 +537,7 @@ class Analyser(object):
 
         arg_count = 0
         for child in ast.children:
-            if child.type == Token:
+            if child.type == AstType.TOKEN:
                 continue
             type_, _ = self.__analyse_expression(child)
             arg_count += 1
@@ -525,6 +555,7 @@ class Analyser(object):
 
         if ast.children[1].type == AstType.PARAMETER_DECLARATION_LIST:
             return self.__analyse_parameter_declaration_list(ast.children[1])
+        return 0
 
     def __analyse_parameter_declaration_list(self, ast: Ast) -> int:
         """
@@ -551,9 +582,12 @@ class Analyser(object):
         constness = (ast.first_child().type == AstType.CONST_QUALIFIER)
         idx = 1 if constness else 0
 
+        type_ = self.__analyse_type_specifier(ast.children[idx])
+        if type_ == TokenType.VOID:
+            raise VoidVariableException(get_pos(ast.children[idx]))
         type_info = {
             SymbolAttrs.CONSTNESS: constness,
-            SymbolAttrs.TYPE: self.__analyse_type_specifier(ast.children[idx])
+            SymbolAttrs.TYPE: type_
         }
 
         # declare params just like declare local variable, the only
@@ -563,10 +597,11 @@ class Analyser(object):
         # this will update the offset correctly automatically
         self.symbol_table.add_symbol(symbol_name, type_info)
 
-    def __analyse_compound_statement(self, ast: Ast, enter_level: bool = True):
+    def __analyse_compound_statement(self, ast: Ast, enter_level: bool = True) -> dict:
         """
         <compound-statement> ::=
             '{' {<variable-declaration>} <statement-seq> '}'
+        Return statement statics, e.g. how many `return`s, `while`s
         """
         assert_ast_type(ast, AstType.COMPOUND_STATEMENT)
 
@@ -578,21 +613,26 @@ class Analyser(object):
             x for x in ast.children if x.type == AstType.VARIABLE_DECLARATION]
         for var_decl in variable_declarations:
             self.__analyse_variable_declaration(var_decl)
-        self.__analyse_statement_seq(ast.children[-2])
+        info = self.__analyse_statement_seq(ast.children[-2])
 
         self.symbol_table.exit_level()
+        return info
 
-    def __analyse_statement_seq(self, ast: Ast):
+    def __analyse_statement_seq(self, ast: Ast) -> dict:
         """
         <statement-seq> ::=
             {<statement>}
+        Return statement statics, e.g. how many `return`s, `while`s
         """
         assert_ast_type(ast, AstType.STATEMENT_SEQ)
 
+        info = {}
         for statement in ast.children:
-            self.__analyse_statement(statement)
+            statement_info = self.__analyse_statement(statement)
+            info = {**info, **statement_info}
+        return info
 
-    def __analyse_statement(self, ast: Ast):
+    def __analyse_statement(self, ast: Ast) -> dict:
         """
         <statement> ::=
             <compound-statement>
@@ -604,36 +644,52 @@ class Analyser(object):
             |<assignment-expression>';'
             |<function-call>';'
             |';'
+        Return statement statics, e.g. how many `return`s, `while`s
         """
         assert_ast_type(ast, AstType.STATEMENT)
 
         child_type = ast.first_child().type
         if child_type == AstType.COMPOUND_STATEMENT:
-            self.__analyse_compound_statement(ast.first_child())
+            return self.__analyse_compound_statement(ast.first_child())
+
         elif child_type == AstType.CONDITION_STATEMENT:
-            self.__analyse_condition_statement(ast.first_child())
+            return self.__analyse_condition_statement(ast.first_child())
+
         elif child_type == AstType.LOOP_STATEMENT:
-            self.__analyse_loop_statement(ast.first_child())
+            return self.__analyse_loop_statement(ast.first_child())
+
         elif child_type == AstType.JUMP_STATEMENT:
-            self.__analyse_jump_statement(ast.first_child())
+            return self.__analyse_jump_statement(ast.first_child())
+
         elif child_type == AstType.PRINT_STATEMENT:
             self.__analyse_print_statement(ast.first_child())
+            return {'print': 1}
+
         elif child_type == AstType.SCAN_STATEMENT:
             self.__analyse_scan_statement(ast.first_child())
+            return {'scan': 1}
+
+        elif child_type == AstType.ASSIGNMENT_EXPRESSION:
+            self.__analyse_assignment_expression(ast.first_child())
+
         elif child_type == AstType.FUNCTION_CALL:
             self.__analyse_function_call(ast.first_child())
-        else:
-            assert child_type == AstType.TOKEN
 
-    def __analyse_condition_statement(self, ast: Ast):
+        else:
+            assert child_type == AstType.TOKEN, f'Expected `;`, got {child_type}'
+        return {}
+
+    def __analyse_condition_statement(self, ast: Ast) -> dict:
         """
         <condition-statement> ::=
             'if' '(' <condition> ')' <statement> ['else' <statement>]
             |'switch' '(' <expression> ')' '{' {<labeled-statement>} '}'
+        Return statement statics, e.g. how many `return`s, `while`s
         """
         assert_ast_type(ast, AstType.CONDITION_STATEMENT)
 
         # NOTE: only handle `if`
+        statements_info = {}
         first_token = ast.first_child().token
         if first_token.tok_type == TokenType.IF:
             condition = ast.children[2]
@@ -642,7 +698,8 @@ class Analyser(object):
             j_instruction = self.__analyse_condition(condition)
             j_instruction_idx = self.elf.next_inst_idx()
             self.add_inst(j_instruction, 0)
-            self.__analyse_statement(if_stat)
+            statements_info = {**statements_info, **
+                               self.__analyse_statement(if_stat)}
 
             # if-else
             if ast.children[-2].token.tok_type == TokenType.ELSE:
@@ -651,21 +708,20 @@ class Analyser(object):
 
                 else_stat = ast.children[-1]
                 else_start_instruction_index = self.elf.next_inst_idx()
-                self.__analyse_statement(else_stat)
+                statements_info = {**statements_info, **
+                                   self.__analyse_statement(else_stat)}
                 instruction_index_after_else = self.elf.next_inst_idx()
 
-                je_offset = self.elf.instruction_offset_from_to(
-                    0, else_start_instruction_index)
-                jmp_offset = self.elf.instruction_offset_from_to(
-                    0, instruction_index_after_else)
-                self.elf.update_instruction_at(j_instruction_idx, je_offset)
+                j_offset = else_start_instruction_index
+                jmp_offset = instruction_index_after_else
+                self.elf.update_instruction_at(j_instruction_idx, j_offset)
                 self.elf.update_instruction_at(jmp_instruction_idx, jmp_offset)
             # naive if
             else:
                 instruction_index_after_if = self.elf.next_inst_idx()
-                je_offset = self.elf.instruction_offset_from_to(
-                    0, instruction_index_after_if)
-                self.elf.update_instruction_at(j_instruction_idx, je_offset)
+                j_offset = instruction_index_after_if
+                self.elf.update_instruction_at(j_instruction_idx, j_offset)
+            return statements_info
         else:
             raise NotSupportedFeature(get_pos(ast), 'switch statement')
 
@@ -676,6 +732,7 @@ class Analyser(object):
         After return, left the condition-value of the top of stack,
         value must be of type `INT`, while `0` for `False`, otherwise `True`
         Return: corresponding `jump` instruction needed, `JE` for `!=`, `JL` for `>=`
+            i.e. the jump instruction that perform jumping when condition is `False`
         """
         assert_ast_type(ast, AstType.CONDITION)
 
@@ -687,12 +744,17 @@ class Analyser(object):
         if len(ast.children) == 1:
             if l_type == TokenType.DOUBLE:
                 self.add_inst(PCode.D2I)
+            return PCode.JE
         else:
             cmp_op = self.__analyse_relational_operator(ast.children[1])
             r_type, _ = self.__analyse_expression(ast.children[-1])
             if r_type == TokenType.VOID:
                 raise VoidTypeCalculationNotSupported(
                     get_pos(ast.children[-1]))
+            if l_type == TokenType.CHAR:
+                l_type = TokenType.INT
+            if r_type == TokenType.CHAR:
+                r_type = TokenType.INT
 
             if r_type != l_type:
                 # `int` op `double`
@@ -729,15 +791,17 @@ class Analyser(object):
             |'default' ':' <statement>
         """
         assert_ast_type(ast, AstType.LABELED_STATEMENT)
+        print(self)  # to remove the static-warning, nonsense
         raise NotSupportedFeature(get_pos(ast), 'case and default')
         pass
 
-    def __analyse_loop_statement(self, ast: Ast):
+    def __analyse_loop_statement(self, ast: Ast) -> dict:
         """
         <loop-statement> ::=
             'while' '(' <condition> ')' <statement>
             |'do' <statement> 'while' '(' <condition> ')' ';'
             |'for' '('<for-init-statement> [<condition>]';' [<for-update-expression>]')' <statement>
+        Return statement statics, e.g. how many `return`s, `while`s
         """
         assert_ast_type(ast, AstType.LOOP_STATEMENT)
 
@@ -747,15 +811,17 @@ class Analyser(object):
             condition = ast.children[2]
             statement = ast.children[4]
 
+            instruction_index_of_condition = self.elf.next_inst_idx()
             jmp_instruction = self.__analyse_condition(condition)
             jmp_instruction_index = self.elf.next_inst_idx()
             self.add_inst(jmp_instruction, 0)
 
-            self.__analyse_statement(statement)
+            statements_info = self.__analyse_statement(statement)
+            self.add_inst(PCode.JMP, instruction_index_of_condition)
             instruction_index_after_while = self.elf.next_inst_idx()
-            offset = self.elf.instruction_offset_from_to(
-                0, instruction_index_after_while)
+            offset = instruction_index_after_while
             self.elf.update_instruction_at(jmp_instruction_index, offset)
+            return statements_info
         elif first_token == TokenType.DO:
             raise NotSupportedFeature(get_pos(ast), 'do')
         else:
@@ -769,6 +835,7 @@ class Analyser(object):
         assert_ast_type(ast, AstType.FOR_INIT_STATEMENT)
 
         # NOTE: not base part
+        print(self)  # to remove the static-warning, nonsense
         raise NotSupportedFeature(get_pos(ast), 'for-init')
 
     def __analyse_for_update_expression(self, ast: Ast):
@@ -779,14 +846,16 @@ class Analyser(object):
         assert_ast_type(ast, AstType.FOR_UPDATE_STATEMENT)
 
         # NOTE: not base part
+        print(self)  # to remove the static-warning, nonsense
         raise NotSupportedFeature(get_pos(ast), 'for-update')
 
-    def __analyse_jump_statement(self, ast: Ast):
+    def __analyse_jump_statement(self, ast: Ast) -> dict:
         """
         <jump-statement> ::=
             'break' ';'
             |'continue' ';'
             |<return-statement>
+        Return statement statics, e.g. how many `return`s, `while`s
         """
         assert_ast_type(ast, AstType.JUMP_STATEMENT)
 
@@ -796,6 +865,7 @@ class Analyser(object):
             raise NotSupportedFeature(get_pos(ast), 'break and continue')
         else:
             self.__analyse_return_statement(ast.first_child())
+            return {'return': 1}
 
     def __analyse_return_statement(self, ast: Ast):
         """
@@ -870,7 +940,7 @@ class Analyser(object):
 
         symbol_name = self.__analyse_identifier(ast.first_child())
         if self.symbol_table.is_const(symbol_name):
-            raise AssignToConstant(get_pos(ast.children[-1]))
+            raise AssignToConstant(get_pos(ast.first_child()))
 
         symbol_type = self.symbol_table.get_type(symbol_name)
         symbol_offset = self.symbol_table.get_offset(symbol_name)
@@ -891,7 +961,7 @@ class Analyser(object):
         <print-statement> ::=
             'print' '(' [<printable-list>] ')' ';'
         """
-        assert_ast_type(ast, AstType.PRINTABLE_LIST)
+        assert_ast_type(ast, AstType.PRINT_STATEMENT)
 
         if ast.children[2].type == AstType.PRINTABLE_LIST:
             self.__analyse_printable_list(ast.children[2])
