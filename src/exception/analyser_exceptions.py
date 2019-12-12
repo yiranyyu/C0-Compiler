@@ -6,9 +6,9 @@ class AnalyserException(Exception):
         self.col = pos[1]
 
 
-class InvalidConstantDeclaration(AnalyserException):
+class ConstantNotInitialized(AnalyserException):
     def __init__(self, pos: tuple):
-        super().__init__(pos, f'')
+        super().__init__(pos, f'Constant variable not initialzed')
 
 
 class DuplicateSymbol(AnalyserException):
@@ -16,9 +16,9 @@ class DuplicateSymbol(AnalyserException):
         super().__init__(pos, f'')
 
 
-class SymbolNotFound(AnalyserException):
-    def __init__(self, pos: tuple):
-        super().__init__(pos, f'')
+class UndefinedSymbol(AnalyserException):
+    def __init__(self, pos: tuple, symbol_name: str):
+        super().__init__(pos, f'Symbol {symbol_name} is not declared before reference.')
 
 
 class InvalidArgumentDeclaration(AnalyserException):
@@ -26,24 +26,24 @@ class InvalidArgumentDeclaration(AnalyserException):
         super().__init__(pos, f'')
 
 
-class MissingFunctionBody(AnalyserException):
+class NoReturnValueForNotVoidFunction(AnalyserException):
     def __init__(self, pos: tuple):
-        super().__init__(pos, f'')
-
-
-class NoReturnValueForIntFunction(AnalyserException):
-    def __init__(self, pos: tuple):
-        super().__init__(pos, f'')
+        super().__init__(pos, f'Function with return_type not void must return value')
 
 
 class NotCallingFunction(AnalyserException):
-    def __init__(self, pos: tuple):
-        super().__init__(pos, f'')
+    def __init__(self, pos: tuple, symbol_name: str):
+        super().__init__(pos, f'{symbol_name} is not a function name')
+
+
+class FunctionNotDefined(AnalyserException):
+    def __init__(self, pos: tuple, func_name: str):
+        super().__init__(pos, f'function {func_name} is not defined')
 
 
 class ReturnValueForVoidFunction(AnalyserException):
     def __init__(self, pos: tuple):
-        super().__init__(pos, f'')
+        super().__init__(pos, f'Cannot return value from void function')
 
 
 class MissingMain(AnalyserException):
@@ -51,21 +51,31 @@ class MissingMain(AnalyserException):
         super().__init__(pos, f'')
 
 
-class AssignToFunction(AnalyserException):
-    def __init__(self, pos: tuple):
-        super().__init__(pos, f'')
-
-
 class AssignToConstant(AnalyserException):
     def __init__(self, pos: tuple):
-        super().__init__(pos, f'')
+        super().__init__(pos, f'Cannot assign to const variable')
 
 
-class LessArguments(AnalyserException):
+class ArgumentsNumberNotMatchException(AnalyserException):
+    def __init__(self, pos: tuple, expected: int, received: int):
+        super().__init__(pos, f'Expected {expected} arguments but got {received}')
+
+
+class VoidVariableException(AnalyserException):
     def __init__(self, pos: tuple):
-        super().__init__(pos, f'')
+        super().__init__(pos, f'Cannot define void or const void variable')
 
 
-class MoreArguments(AnalyserException):
-    def __init__(self, pos: tuple):
-        super().__init__(pos, f'')
+class UnknownVariableType(AnalyserException):
+    def __init__(self, pos: tuple, type_: str):
+        super().__init__(pos, f'Unknown type {type_}')
+
+
+class NotSupportedFeature(AnalyserException):
+    def __init__(self, pos: tuple, feature: str):
+        super().__init__(pos, f'Feature {feature} not supported yet!')
+
+
+class VoidTypeCalculationNotSupported(AnalyserException):
+    def __init__(self, pos):
+        super().__init__(pos, f'Cannot calculate with void type')
