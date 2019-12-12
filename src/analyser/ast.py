@@ -95,6 +95,9 @@ class Ast(object):
     def get_children(self):
         return self.children
 
+    def first_child(self):
+        return self.children[0]
+
     def draw(self, draw_full_ast=False):
         print(self.__draw_iter(indent=0, draw_full_ast=draw_full_ast))
 
