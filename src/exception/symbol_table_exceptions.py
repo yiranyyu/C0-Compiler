@@ -6,9 +6,9 @@ class SymbolTableException(Exception):
 class SymbolWithoutType(SymbolTableException):
     def __init__(self, symbol_name: str):
         super().__init__(
-            f'Try to insert {symbol_name} into symbol table without type info')
+            f'Try to insert `{symbol_name}` into symbol table without type info')
 
 
 class SymbolNotFound(SymbolTableException):
     def __init__(self, symbol_name: str):
-        super().__init__(f'Symbol {symbol_name} not found.')
+        super().__init__(f'Symbol `{symbol_name}` not found.')
