@@ -13,8 +13,9 @@ class Constant(object):
 
 
 class Function(object):
-    def __init__(self, name: str, return_type: str, instructions: List[PCode]):
+    def __init__(self, name: str, return_type: str, name_idx: int, instructions: List[PCode]):
         self.name = name
+        self.name_idx = name_idx
         self.return_type = return_type
         self.instructions = instructions
         self.param_count: int = ...
@@ -30,7 +31,7 @@ class ELF(object):
 
     def add_constant(self, type_: str, value):
         """
-        Add consant to elf and return corresponding index
+        Add constant to elf and return corresponding index
         If constant already existed, this method won't make a new copy
         """
         assert type_ in [Constant.STR, Constant.INT,
@@ -49,23 +50,11 @@ class ELF(object):
             return len(self.functions[-1].instructions)
         return len(self.instructions)
 
-    def instruction_offset_from_to(self, frm: int, to: int) -> int:
-        """
-        :return offset from `frm` to `to`, addr_frm + return_value = addr_to
-        """
-        if frm > to:
-            return -self.instruction_offset_from_to(to, frm)
-        offset = 0
-        while frm < to:
-            offset += self.instructions[frm].size
-            frm += 1
-        return offset
-
-    def add_function(self, return_type: str, func_name: str):
+    def add_function(self, return_type: str, func_name: str, name_idx: int):
         assert not self.has_function(
             func_name), 'Please check function not contained first'
         self.functions.append(
-            Function(name=func_name, return_type=return_type, instructions=[]))
+            Function(name=func_name, return_type=return_type, name_idx=name_idx, instructions=[]))
 
     def has_function(self, func_name: str) -> bool:
         for func in self.functions:
@@ -95,12 +84,15 @@ class ELF(object):
                 return function.return_type
 
     def current_instructions(self):
-        if not self.functions:
+        if self.functions:
             return self.functions[-1].instructions
         return self.instructions
 
     def update_instruction_at(self, idx: int, *args):
         self.current_instructions()[idx].update(*args)
+
+    def generate_o0(self):
+        pass
 
     def generate_s0(self):
         """
@@ -126,7 +118,30 @@ class ELF(object):
             {index} {opcode} {operands}
             ...
         """
-        '''
-        find a function-definition -> add name to const-list
-        '''
-        pass
+        output = ''
+
+        # constants
+        output += '.constants:\n'
+        for idx, const in enumerate(self.constants):
+            value = const.value
+            if const.type_ == Constant.STR:
+                value = f'"{repr(value)[1:-1]}"'
+            output += f'    {idx: 5} {const.type_} {value}\n'
+
+        # start
+        output += '.start:\n'
+        for idx, instruction in enumerate(self.instructions):
+            output += f'    {idx: 5} {instruction}\n'
+
+        # functions
+        output += '.functions:\n'
+        for idx, function in enumerate(self.functions):
+            output += f'    {idx: >3} {function.name_idx: >3} {function.param_count: >3} {1: >3}\n'
+
+        # function definitions
+        for func in self.functions:
+            output += f'{func.name}:\n'
+            for idx, instruction in enumerate(func.instructions):
+                output += f'    {idx: >3} {instruction}\n'
+
+        return output
