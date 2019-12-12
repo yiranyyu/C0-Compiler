@@ -99,16 +99,17 @@ class Ast(object):
         return self.children[0]
 
     def draw(self, draw_full_ast=False):
-        print(self.__draw_iter(indent=0, draw_full_ast=draw_full_ast))
+        print(self.draw_iter(indent=0, draw_full_ast=draw_full_ast))
 
-    def __draw_iter(self, indent: int, islast=False, draw_full_ast=False):
+    def draw_iter(self, indent: int, islast=False, draw_full_ast=False):
         string = ''
         if self.type == AstType.STATEMENT and len(self.children) == 1 and not draw_full_ast:
-            string += self.children[0]._Ast__draw_iter(indent=indent,
-                                                       islast=islast,
-                                                       draw_full_ast=draw_full_ast)
+            string += self.children[0].draw_iter(indent=indent,
+                                                 islast=islast,
+                                                 draw_full_ast=draw_full_ast)
         elif self.token is None:
-            string += f'{" " * indent}{"`-" if islast else "|-"}{get_level_color(indent)}{self.type.lower()}{ConsoleColors.END}\n'
+            string += f'{" " * indent}{"`-" if islast else "|-"}'
+            string += f'{get_level_color(indent)}{self.type.lower()}{ConsoleColors.END}\n'
             if len(self.children) == 1 and not draw_full_ast:
                 children = self.children
                 while True:
@@ -116,16 +117,17 @@ class Ast(object):
                         break
                     children = children[0].children
                 string += ' ' * indent
-                string += children[0]._Ast__draw_iter(indent=indent+1,
-                                                      islast=True,
-                                                      draw_full_ast=draw_full_ast)
+                string += children[0].draw_iter(indent=indent + 1,
+                                                islast=True,
+                                                draw_full_ast=draw_full_ast)
             else:
                 for idx, child in enumerate(self.children):
                     islast = idx == len(self.children) - 1
                     string += ' ' * indent
-                    string += child._Ast__draw_iter(indent=indent + 1,
-                                                    islast=islast,
-                                                    draw_full_ast=draw_full_ast)
+                    string += child.draw_iter(indent=indent + 1,
+                                              islast=islast,
+                                              draw_full_ast=draw_full_ast)
         else:
-            string += f'{" " * indent}|-{get_level_color(indent)}token{ConsoleColors.END} @type={self.token.tok_type}, {ConsoleColors.FAIL}@value={repr(self.token.value)}{ConsoleColors.END}\n'
+            string += f'{" " * indent}|-{get_level_color(indent)}token{ConsoleColors.END} @type={self.token.tok_type}, '
+            string += f'{ConsoleColors.FAIL}@value={repr(self.token.value)}{ConsoleColors.END}\n'
         return string
