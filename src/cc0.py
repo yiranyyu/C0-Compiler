@@ -1,3 +1,4 @@
+#! /usr/bin/python3
 import sys
 from typing import List, Dict
 from tokenizer import Tokenizer
@@ -16,13 +17,13 @@ def print_error_msg_and_exit(msg):
 if __name__ == '__main__':
     help_info = '''Usage:
       cc0 [options] input [-o file]
-    or 
+    or
       cc0 [-h]
     Options:
       -s        将输入的 c0 源代码翻译为文本汇编文件
       -c        将输入的 c0 源代码翻译为二进制目标文件
       -h        显示关于编译器使用的帮助
-      -o file   输出到指定的文件 file
+      -o file   输出到指定的文件 file, 默认输出到 out 文件
     '''
 
     args: List[str] = sys.argv[1:]
@@ -37,9 +38,11 @@ if __name__ == '__main__':
         print(help_info)
         exit(0)
     if '-s' in args and '-c' in args:
-        print_error_msg_and_exit('Please specify `-s` or `-c`, not both')
+        print_error_msg_and_exit(
+            'Please specify `-s` or `-c`, not both\n' + help_info)
     if '-s' not in args and '-c' not in args:
-        print_error_msg_and_exit('Please specify output type, `-s` or `-c`')
+        print_error_msg_and_exit(
+            'Please specify output type, `-s` or `-c`\n' + help_info)
 
     out_file = sys.stdout
     if '-o' in args:
@@ -51,7 +54,11 @@ if __name__ == '__main__':
         try:
             out_file = open(out_file_path, 'w')
         except IOError:
-            print_error_msg_and_exit(f'Cannot open output file {out_file_path}')
+            print_error_msg_and_exit(
+                f'Cannot open output file {out_file_path}')
+
+    if out_file is sys.stdout:
+        out_file = open('./out', 'w')
 
     # for typing convenience, not necessarily `sys.stdin`
     in_file = sys.stdin
