@@ -1,5 +1,6 @@
 from elf.pcode import PCode
 from typing import List, Union
+from analyser.symbol_table import type_to_size
 
 
 class Constant(object):
@@ -13,12 +14,19 @@ class Constant(object):
 
 
 class Function(object):
-    def __init__(self, name: str, return_type: str, name_idx: int, instructions: List[PCode]):
+    def __init__(self, name: str, return_type: str, name_idx: int, params_info: List[str],  instructions: List[PCode]):
         self.name = name
         self.name_idx = name_idx
         self.return_type = return_type
         self.instructions = instructions
-        self.param_count: int = ...
+        self.param_info: List[str] = params_info
+        self.param_size = self.__init_param_size()
+
+    def __init_param_size(self):
+        size = 0
+        for param_type in self.param_info:
+            size += type_to_size[param_type]
+        return size
 
 
 class ELF(object):
@@ -50,11 +58,11 @@ class ELF(object):
             return len(self.functions[-1].instructions)
         return len(self.instructions)
 
-    def add_function(self, return_type: str, func_name: str, name_idx: int):
+    def add_function(self, return_type: str, func_name: str, name_idx: int, params_info: List[str]):
         assert not self.has_function(
             func_name), 'Please check function not contained first'
         self.functions.append(
-            Function(name=func_name, return_type=return_type, name_idx=name_idx, instructions=[]))
+            Function(name=func_name, return_type=return_type, name_idx=name_idx, params_info=params_info, instructions=[]))
 
     def has_function(self, func_name: str) -> bool:
         for func in self.functions:
@@ -74,7 +82,7 @@ class ELF(object):
             func_name), 'Please check function contained first'
         for func in self.functions:
             if func.name == func_name:
-                return func.param_count
+                return len(func.param_info)
 
     def function_return_type(self, func_name: str) -> str:
         assert self.has_function(
@@ -136,7 +144,7 @@ class ELF(object):
         # functions
         output += '.functions:\n'
         for idx, function in enumerate(self.functions):
-            output += f'    {idx: >3} {function.name_idx: >3} {function.param_count: >3} {1: >3}\n'
+            output += f'    {idx: >3} {function.name_idx: >3} {function.param_size: >3} {1: >3}\n'
 
         # function definitions
         for func in self.functions:

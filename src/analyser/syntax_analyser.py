@@ -93,12 +93,14 @@ class Analyser(object):
                 get_pos(ast.children[1]), func_name)
 
         idx = self.elf.add_constant(Constant.STR, func_name)
-        self.elf.add_function(return_type, func_name, idx)
+        # [type_of_param_0, ..., type_of_param_k]
+        params_info = self.__analyse_parameter_clause(ast.children[2])
+        self.elf.add_function(return_type, func_name, idx, params_info)
 
         # put parameters and function body in a same new scope
         self.symbol_table.enter_level(new_stack=True)
-        param_count = self.__analyse_parameter_clause(ast.children[2])
-        self.elf.current_function().param_count = param_count
+
+        # {'return': count_of_return_statement, ..., 'if': count_of_if_statement}
         statements_info = self.__analyse_compound_statement(
             ast.children[3], enter_level=False)
 
@@ -545,37 +547,39 @@ class Analyser(object):
                 raise VoidTypeCalculationNotSupported(get_pos(child))
         return arg_count
 
-    def __analyse_parameter_clause(self, ast: Ast) -> int:
+    def __analyse_parameter_clause(self, ast: Ast) -> list:
         """
         <parameter-clause> ::=
             '(' [<parameter-declaration-list>] ')'
-        Return number of parameters defined
+        Return types of parameters defined
         """
         assert_ast_type(ast, AstType.PARAMETER_CLAUSE)
 
         if ast.children[1].type == AstType.PARAMETER_DECLARATION_LIST:
             return self.__analyse_parameter_declaration_list(ast.children[1])
-        return 0
+        return []
 
-    def __analyse_parameter_declaration_list(self, ast: Ast) -> int:
+    def __analyse_parameter_declaration_list(self, ast: Ast) -> list:
         """
         <parameter-declaration-list> ::=
             <parameter-declaration>{','<parameter-declaration>}
-        Return number of parameters defined
+        Return types of parameters defined
         """
         assert_ast_type(ast, AstType.PARAMETER_DECLARATION_LIST)
 
         # parameters: value in reversed order, last param at stack-top
         params = [x for x in ast.children if x.type ==
                   AstType.PARAMETER_DECLARATION]
+        params_info: List[str] = []
         for param in params:
-            self.__analyse_parameter_declaration(param)
-        return len(params)
+            params_info.append(self.__analyse_parameter_declaration(param))
+        return params_info
 
-    def __analyse_parameter_declaration(self, ast: Ast):
+    def __analyse_parameter_declaration(self, ast: Ast) -> str:
         """
         <parameter-declaration> ::=
             [<const-qualifier>]<type-specifier><identifier>
+        Return type of parameter
         """
         assert_ast_type(ast, AstType.PARAMETER_DECLARATION)
 
@@ -596,6 +600,8 @@ class Analyser(object):
 
         # this will update the offset correctly automatically
         self.symbol_table.add_symbol(symbol_name, type_info)
+
+        return type_
 
     def __analyse_compound_statement(self, ast: Ast, enter_level: bool = True) -> dict:
         """
