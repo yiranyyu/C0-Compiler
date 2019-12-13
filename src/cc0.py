@@ -24,13 +24,15 @@ if __name__ == '__main__':
       -c        将输入的 c0 源代码翻译为二进制目标文件
       -h        显示关于编译器使用的帮助
       -o file   输出到指定的文件 file, 默认输出到 out 文件
+      -a        输出抽象语法树到标准输出
+      -A        输出详细的抽象语法树到标准输出
     '''
 
     args: List[str] = sys.argv[1:]
     options: Dict[str, int] = {}
     for idx, arg in enumerate(args):
         if arg.startswith('-'):
-            if arg not in ['-s', '-c', '-h', '-o']:
+            if arg not in ['-s', '-c', '-h', '-o', '-a', '-A']:
                 print_error_msg_and_exit(f'Invalid option {arg}')
             options[arg] = idx
 
@@ -88,6 +90,11 @@ if __name__ == '__main__':
             out_file.write(elf.generate_s0())
         elif '-c' in args:
             out_file.write(elf.generate_o0())
+
+        if '-A' in args:
+            analyser.c0_ast.draw(draw_full_ast=True)
+        elif '-a' in args:
+            analyser.c0_ast.draw(draw_full_ast=False)
     except (TokenizerException, ParserException, AnalyserException) as e:
         print(e)
         print('Source code: ' + tokenizer.source[e.row], end='')
