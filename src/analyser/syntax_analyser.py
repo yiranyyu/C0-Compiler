@@ -91,14 +91,14 @@ class Analyser(object):
         if self.elf.has_function(func_name):
             raise FunctionRedefinitionException(
                 get_pos(ast.children[1]), func_name)
-
         idx = self.elf.add_constant(Constant.STR, func_name)
-        # [type_of_param_0, ..., type_of_param_k]
-        params_info = self.__analyse_parameter_clause(ast.children[2])
-        self.elf.add_function(return_type, func_name, idx, params_info)
 
         # put parameters and function body in a same new scope
         self.symbol_table.enter_level(new_stack=True)
+
+        # [type_of_param_0, ..., type_of_param_k]
+        params_info = self.__analyse_parameter_clause(ast.children[2])
+        self.elf.add_function(return_type, func_name, idx, params_info)
 
         # {'return': count_of_return_statement, ..., 'if': count_of_if_statement}
         statements_info = self.__analyse_compound_statement(
