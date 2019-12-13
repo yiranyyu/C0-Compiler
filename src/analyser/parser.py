@@ -1,6 +1,6 @@
 import sys
 import typing
-from tokenizer import Token, TokenType
+from tokenizer import TokenType
 from exception.parser_exceptions import *
 from analyser.ast import Ast, AstType
 
@@ -41,7 +41,7 @@ class C0ASTParser(object):
                 ast.add_child(self.__parse_variable_declaration())
             elif token.tok_type in TokenType.types:
                 a, b, c = [self.__next_token(
-                    suppress_exception=True) for i in range(3)]
+                    suppress_exception=True) for _ in range(3)]
                 if c is None:
                     raise InvalidVariableDeclaration(token.st_pos)
 
@@ -245,6 +245,13 @@ class C0ASTParser(object):
             if token.tok_type != TokenType.LEFT_PARENTHESES:
                 break
             ast.add_child(self.__assert_token('(', TokenType.LEFT_PARENTHESES))
+
+            token = self.__peek_token(suppress_exception=True)
+            if token is None:
+                raise InvalidExpression(self.__prev_token().ed_pos)
+            if token.tok_type not in TokenType.types:
+                self.__unread_token()
+                break
             ast.add_child(self.__parse_type_specifier())
             ast.add_child(self.__assert_token(')', TokenType.RIGHT_PARENTHESES))
 
