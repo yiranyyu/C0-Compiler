@@ -1,6 +1,11 @@
 from elf.pcode import PCode
-from typing import List, Union
+from typing import List, Union, Dict
 from analyser.symbol_table import type_to_size
+import struct
+
+
+def print_hex_byte(byte_seq: bytes):
+    print(' '.join(str(hex(x))[2:].zfill(2) for x in byte_seq))
 
 
 class Constant(object):
@@ -8,9 +13,16 @@ class Constant(object):
     INT = 'I'
     DOUBLE = 'D'
 
+    str_to_binary: Dict[str, int] = {
+        STR: 0,
+        INT: 1,
+        DOUBLE: 2
+    }
+
     def __init__(self, type_: str, value):
         self.type_ = type_
         self.value = value
+        self.binary_type = Constant.str_to_binary[self.type_]
 
 
 class Function(object):
@@ -107,10 +119,154 @@ class ELF(object):
     def update_instruction_at(self, idx: int, *args):
         self.current_instructions()[idx].update(*args)
 
-    def generate_o0(self):
-        pass
+    def generate_o0(self) -> bytes:
+        """
+        // i2,i3,i4的内容，以大端序（big-endian）写入文件
+        typedef int8_t  i1;
+        typedef int16_t i2;
+        typedef int32_t i4;
+        typedef int64_t i8;
 
-    def generate_s0(self):
+        // u2,u3,u4的内容，以大端序（big-endian）写入文件
+        typedef uint8_t  u1;
+        typedef uint16_t u2;
+        typedef uint32_t u4;
+        typedef uint64_t u8;
+
+        struct String_info {
+            u2 length;
+            u1 value[length];
+        };
+
+        struct Int_info {
+            i4 value;
+        };
+
+        struct Double_info {
+            u4 high_bytes;
+            u4 low_bytes;
+        };
+
+        struct Constant_info {
+            // STRING = 0,
+            // INT = 1,
+            // DOUBLE = 2
+            u1 type;
+            // 根据type决定是String_info 还是 Int_info 还是 Double_info
+            u1 info[];
+        };
+
+        struct Instruction {
+            u1 opcode;
+            u1 operands[/* size depends on opcode */];
+        };
+
+        struct Function_info {
+            u2          name_index; // name: CO_binary_file.strings[name_index]
+            u2          params_size;
+            u2          level;
+            u2          instructions_count;
+            Instruction instructions[instructions_count];
+        };
+
+        struct Start_code_info {
+            u2          instructions_count;
+            Instruction instructions[instructions_count];
+        }
+
+        struct C0_binary_file {
+            u4              magic; // must be 0x43303A29
+            u4              version;
+            u2              constants_count;
+            Constant_info   constants[constants_count];
+            Start_code_info start_code;
+            u2              functions_count;
+            Function_info   functions[functions_count];
+        };
+        """
+        byteorder = 'big'
+
+        def twos_comp(val: int, bits: int) -> int:
+            if val >= 0:
+                return val
+            return val + (1 << bits)
+
+        def double_binary(x: float):
+            return struct.pack('>d', x)
+
+        output = bytes()
+
+        magic = (0x43303A29).to_bytes(4, byteorder)
+        output += magic
+
+        version = (0x01).to_bytes(4, byteorder)
+        output += version
+
+        constants_count = len(self.constants).to_bytes(2, byteorder)
+        output += constants_count
+
+        # Constant_info
+        for const in self.constants:
+            binary_type = const.binary_type.to_bytes(1, byteorder)
+            info = bytes()
+
+            if const.type_ == Constant.STR:
+                info += len(const.value).to_bytes(2, byteorder)
+                info += bytes(const.value, encoding='ASCII')
+            elif const.type_ == Constant.INT:
+                info += twos_comp(const.value, 32).to_bytes(4, byteorder)
+            elif const.type_ == Constant.DOUBLE:
+                info += double_binary(const.value)
+            else:
+                raise Exception('Fatal error, unrecognized constant type')
+            output += binary_type + info
+
+        # Start_code_info
+        instruction_count = len(self.instructions).to_bytes(2, byteorder)
+        output += instruction_count
+
+        for instruction in self.instructions:
+            instruction_info = PCode.type_to_info[instruction.operator]
+            operator = instruction_info['code'].to_bytes(1, byteorder)
+            operands = []
+            for size, operand in zip(instruction_info['sizes'][1:], instruction.operands):
+                operands.append(operand.to_bytes(size, byteorder))
+
+            output += operator + b''.join(operands)
+            # print(instruction)
+            # print_hex_byte(operator + b''.join(operands))
+
+        functions_count = len(self.functions).to_bytes(2, byteorder)
+        output += functions_count
+
+        # Function_info
+        for function in self.functions:
+            name_index = function.name_idx.to_bytes(2, byteorder)
+            output += name_index
+
+            params_size = function.param_size.to_bytes(2, byteorder)
+            output += params_size
+
+            level = (1).to_bytes(2, byteorder)
+            output += level
+
+            instruction_count = len(function.instructions).to_bytes(2, byteorder)
+            output += instruction_count
+
+            for instruction in function.instructions:
+                instruction_info = PCode.type_to_info[instruction.operator]
+                operator = instruction_info['code'].to_bytes(1, byteorder)
+                operands = []
+                for size, operand in zip(instruction_info['sizes'][1:], instruction.operands):
+                    operands.append(operand.to_bytes(size, byteorder))
+
+                output += operator + b''.join(operands)
+                # print(instruction)
+                # print_hex_byte(operator + b''.join(operands))
+
+        return output
+
+    def generate_s0(self) -> str:
         """
         Generate output ELF file, output is like:
 

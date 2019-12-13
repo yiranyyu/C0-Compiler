@@ -46,6 +46,8 @@ if __name__ == '__main__':
         print_error_msg_and_exit(
             'Please specify output type, `-s` or `-c`\n' + help_info)
 
+    mode = 'w' if '-s' in args else 'wb'
+
     out_file = sys.stdout
     if '-o' in args:
         out_file_path_index = options['-o'] + 1
@@ -54,13 +56,13 @@ if __name__ == '__main__':
 
         out_file_path = args[out_file_path_index]
         try:
-            out_file = open(out_file_path, 'w')
+            out_file = open(out_file_path, mode)
         except IOError:
             print_error_msg_and_exit(
                 f'Cannot open output file {out_file_path}')
 
     if out_file is sys.stdout:
-        out_file = open('./out', 'w')
+        out_file = open('./out', mode)
 
     # for typing convenience, not necessarily `sys.stdin`
     in_file = sys.stdin

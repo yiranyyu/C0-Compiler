@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, List, Tuple
 
 
 class PCode(object):
@@ -64,224 +64,224 @@ class PCode(object):
 
     type_to_info: Dict[str, dict] = {
         SNEW: {
-            'size': 1 + 4,
+            'sizes': (1, 4),
             'operands': 1,
             'code': 0x0c
         },
 
         ISCAN: {
-            'size': 1,
+            'sizes': (1,),
             'operands': 0,
             'code': 0xb0
         },
         DSCAN: {
-            'size': 1,
+            'sizes': (1,),
             'operands': 0,
             'code': 0xb1
         },
         CSCAN: {
-            'size': 1,
+            'sizes': (1,),
             'operands': 0,
             'code': 0xb2
         },
         IPRINT: {
-            'size': 1,
+            'sizes': (1,),
             'operands': 0,
             'code': 0xa0
         },
         DPRINT: {
-            'size': 1,
+            'sizes': (1,),
             'operands': 0,
             'code': 0xa1
         },
         CPRINT: {
-            'size': 1,
+            'sizes': (1,),
             'operands': 0,
             'code': 0xa2
         },
         SPRINT: {
-            'size': 1,
+            'sizes': (1,),
             'operands': 0,
             'code': 0xa3
         },
         PRINTL: {
-            'size': 1,
+            'sizes': (1,),
             'operands': 0,
             'code': 0xaf
         },
 
         CALL: {
-            'size': 1 + 2,
+            'sizes': (1, 2),
             'operands': 1,
             'code': 0x80
         },
         RET: {
-            'size': 1,
+            'sizes': (1,),
             'operands': 0,
             'code': 0x88
         },
         IRET: {
-            'size': 1,
+            'sizes': (1,),
             'operands': 0,
             'code': 0x89
         },
         DRET: {
-            'size': 1,
+            'sizes': (1,),
             'operands': 0,
             'code': 0x8a
         },
         JE: {
-            'size': 1 + 2,
+            'sizes': (1, 2),
             'operands': 1,
             'code': 0x71
         },
         JNE: {
-            'size': 1 + 2,
+            'sizes': (1, 2),
             'operands': 1,
             'code': 0x72
         },
         JL: {
-            'size': 1 + 2,
+            'sizes': (1, 2),
             'operands': 1,
             'code': 0x73
         },
         JLE: {
-            'size': 1 + 2,
+            'sizes': (1, 2),
             'operands': 1,
             'code': 0x76
         },
         JG: {
-            'size': 1 + 2,
+            'sizes': (1, 2),
             'operands': 1,
             'code': 0x75
         },
         JGE: {
-            'size': 1 + 2,
+            'sizes': (1, 2),
             'operands': 1,
             'code': 0x74
         },
         JMP: {
-            'size': 1 + 2,
+            'sizes': (1, 2),
             'operands': 1,
             'code': 0x70
         },
 
         LOADA: {
-            'size': 1 + 2 + 4,
+            'sizes': (1, 2, 4),
             'operands': 2,
             'code': 0x0a
         },
         ILOAD: {
-            'size': 1,
+            'sizes': (1,),
             'operands': 0,
             'code': 0x10
         },
         DLOAD: {
-            'size': 1,
+            'sizes': (1,),
             'operands': 0,
             'code': 0x11
         },
         LOADC: {
-            'size': 1 + 2,
+            'sizes': (1, 2),
             'operands': 1,
             'code': 0x09
         },
         ISTORE: {
-            'size': 1,
+            'sizes': (1,),
             'operands': 0,
             'code': 0x20
         },
         DSTORE: {
-            'size': 1,
+            'sizes': (1,),
             'operands': 0,
             'code': 0x21
         },
 
         I2D: {
-            'size': 1,
+            'sizes': (1,),
             'operands': 0,
             'code': 0x60
         },
         D2I: {
-            'size': 1,
+            'sizes': (1,),
             'operands': 0,
             'code': 0x61
         },
         I2C: {
-            'size': 1,
+            'sizes': (1,),
             'operands': 0,
             'code': 0x62
         },
 
         DADD: {
-            'size': 1,
+            'sizes': (1,),
             'operands': 0,
             'code': 0x31
         },
         IADD: {
-            'size': 1,
+            'sizes': (1,),
             'operands': 0,
             'code': 0x30
         },
         DSUB: {
-            'size': 1,
+            'sizes': (1,),
             'operands': 0,
             'code': 0x35
         },
         ISUB: {
-            'size': 1,
+            'sizes': (1,),
             'operands': 0,
             'code': 0x34
         },
         DMUL: {
-            'size': 1,
+            'sizes': (1,),
             'operands': 0,
             'code': 0x39
         },
         IMUL: {
-            'size': 1,
+            'sizes': (1,),
             'operands': 0,
             'code': 0x38
         },
         DDIV: {
-            'size': 1,
+            'sizes': (1,),
             'operands': 0,
             'code': 0x3d
         },
         IDIV: {
-            'size': 1,
+            'sizes': (1,),
             'operands': 0,
             'code': 0x3c
         },
         DNEG: {
-            'size': 1,
+            'sizes': (1,),
             'operands': 0,
             'code': 0x41
         },
         INEG: {
-            'size': 1,
+            'sizes': (1,),
             'operands': 0,
             'code': 0x40
         },
 
         BIPUSH: {
-            'size': 1 + 1,
+            'sizes': (1, 1),
             'operands': 1,
             'code': 0x01
         },
         IPUSH: {
-            'size': 1 + 4,
+            'sizes': (1, 4),
             'operands': 1,
             'code': 0x02
         },
 
         ICMP: {
-            'size': 1,
+            'sizes': (1,),
             'operands': 0,
             'code': 0x44
         },
         DCMP: {
-            'size': 1,
+            'sizes': (1,),
             'operands': 0,
             'code': 0x45
         },
@@ -290,8 +290,8 @@ class PCode(object):
     def __init__(self, inst_type: str, *ops):
         # print(f'create {inst_type} with {ops}')
         self.operator = inst_type
-        self.operands = ops
-        self.size = PCode.type_to_info[inst_type]['size']
+        self.operands: Tuple[int] = ops
+        self.size = PCode.type_to_info[inst_type]['sizes']
         self.__check_syntax()
 
     def update(self, *args):
@@ -303,15 +303,19 @@ class PCode(object):
     def __check_syntax(self):
         info = PCode.type_to_info[self.operator]
         operands = info['operands']
+        sizes = info['sizes']
+        if len(sizes) - 1 != operands:
+            raise Exception('Fatal error, configuration illegal')
 
         error_msg = f'{operands} operands need of {self.operator}, but got {len(self.operands)}'
         assert (len(self.operands) == operands), error_msg
 
     def __str__(self):
-        output = ''
+        output = '\033[94m'
         output += self.operator
         for idx, x in enumerate(self.operands):
             if idx:
                 output += ','
             output += f' {x}'
+        output += '\033[0m'
         return output
