@@ -12,3 +12,8 @@ class SymbolWithoutType(SymbolTableException):
 class SymbolNotFound(SymbolTableException):
     def __init__(self, symbol_name: str):
         super().__init__(f'Symbol `{symbol_name}` not found.')
+
+
+class FunctionTypeHasNoOffsetAttribute(SymbolTableException):
+    def __init__(self, symbol_name: str):
+        super().__init__(f'Symbol `{symbol_name}` is a function, but received a request for offset')

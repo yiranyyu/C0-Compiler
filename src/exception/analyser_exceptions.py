@@ -56,6 +56,11 @@ class ArgumentsNumberNotMatchException(AnalyserException):
         super().__init__(pos, f'Expected {expected} arguments but got {received}')
 
 
+class ArgumentTypeNotMatchException(AnalyserException):
+    def __init__(self, pos: tuple, expected: str, received: str):
+        super().__init__(pos, f'For function argument, expected {expected} but got type {received}')
+
+
 class VoidVariableException(AnalyserException):
     def __init__(self, pos: tuple):
         super().__init__(pos, f'Cannot define void or const void variable')
@@ -79,3 +84,8 @@ class VoidTypeCalculationNotSupported(AnalyserException):
 class FunctionRedefinitionException(AnalyserException):
     def __init__(self, pos: tuple, func_name: str):
         super().__init__(pos, f'function {func_name} already defined')
+
+
+class FunctionTypeCalculationNotSupported(AnalyserException):
+    def __init__(self, pos: tuple, func_name: str):
+        super().__init__(pos, f'{func_name} is a function name')
