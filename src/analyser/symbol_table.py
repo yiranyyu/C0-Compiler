@@ -8,6 +8,9 @@ class SymbolAttrs(object):
     OFFSET = 'OFFSET'
     SIZE = 'SIZE'
 
+    # mark whether symbol is registered as a function name or not
+    IS_FUNC = 'IS_FUNC'
+
     # corresponding value must be one of `TokenType.types`
     TYPE = 'TYPE'
 
@@ -33,7 +36,7 @@ class ScopeLevelSymbolTable(object):
     def __init__(self, base_offset: int, stack_level):
         self.symbols: Dict[str, dict] = {}
         self.next_offset = base_offset
-        self.stack_level = stack_level
+        self.function_level = stack_level
 
     def add_symbol(self, symbol_name: str, attrs: dict):
         """
@@ -41,19 +44,24 @@ class ScopeLevelSymbolTable(object):
         :param symbol_name: name of symbol to be inserted
         :param attrs: attributes of symbol, keys must be member of `SymbolAttr`
         """
-        if SymbolAttrs.TYPE not in attrs:
-            raise SymbolWithoutType(symbol_name)
+        attrs[SymbolAttrs.IS_FUNC] = attrs.get(SymbolAttrs.IS_FUNC, False)
 
-        attrs[SymbolAttrs.SIZE] = get_type_size(attrs)
-        attrs[SymbolAttrs.OFFSET] = self.next_offset
+        if not attrs[SymbolAttrs.IS_FUNC]:
+            if SymbolAttrs.TYPE not in attrs:
+                raise SymbolWithoutType(symbol_name)
 
-        self.next_offset += attrs[SymbolAttrs.SIZE]
+            attrs[SymbolAttrs.SIZE] = get_type_size(attrs)
+            attrs[SymbolAttrs.OFFSET] = self.next_offset
+
+            self.next_offset += attrs[SymbolAttrs.SIZE]
         self.symbols[symbol_name] = attrs
 
     def update_symbol(self, symbol_name: str, key: str, value):
         self.symbols[symbol_name][key] = value
 
     def get_symbol_attr(self, symbol_name: str, key: str):
+        if key == SymbolAttrs.OFFSET and self.symbols[symbol_name][SymbolAttrs.IS_FUNC]:
+            raise FunctionTypeHasNoOffsetAttribute(symbol_name)
         return self.symbols[symbol_name][key]
 
     def get_symbol_info(self, symbol_name: str) -> dict:
@@ -120,7 +128,7 @@ class SymbolTable(object):
         self.__assert_contains(symbol_name)
         for idx, table in enumerate(self.level_tables):
             if symbol_name in table:
-                stack_diff = self.current_level().stack_level - table.stack_level
+                stack_diff = self.current_level().function_level - table.function_level
                 return stack_diff, table.get_symbol_attr(symbol_name, SymbolAttrs.OFFSET)
 
     def get_size(self, symbol_name: str):
@@ -141,6 +149,12 @@ class SymbolTable(object):
             if symbol_name in table:
                 return table.get_symbol_info(symbol_name)
 
+    def is_function(self, symbol_name: str) -> bool:
+        self.__assert_contains(symbol_name)
+        for table in self.level_tables:
+            if symbol_name in table:
+                return table.get_symbol_attr(symbol_name, SymbolAttrs.IS_FUNC)
+
     def current_level(self) -> ScopeLevelSymbolTable:
         return self.level_tables[0]
 
@@ -151,7 +165,7 @@ class SymbolTable(object):
             stack_level = 0
         else:
             base_offset = 0 if new_stack else self.current_level().next_offset
-            stack_level = (1 if new_stack else 0) + self.current_level().stack_level
+            stack_level = (1 if new_stack else 0) + self.current_level().function_level
         self.level_tables.insert(0, ScopeLevelSymbolTable(base_offset, stack_level))
 
     def exit_level(self):
