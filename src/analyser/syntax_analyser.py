@@ -514,10 +514,12 @@ class Analyser(object):
             else:
                 raise FunctionNotDefined(get_pos(ast.first_child()), func_name)
 
-        # prepare parameters, store const_index for `double`, otherwise value
+        # prepare parameters, put values on stack-top from left to right
+        params_info = self.elf.function_params_info(func_name)
         arg_count = 0
         if ast.children[2].type == AstType.EXPRESSION_LIST:
-            arg_count = self.__analyse_expression_list(ast.children[2])
+            arg_count = self.__analyse_expression_list(
+                ast.children[2], params_info)
 
         param_count = self.elf.function_param_count(func_name)
         if arg_count != param_count:
@@ -528,24 +530,26 @@ class Analyser(object):
         self.add_inst(PCode.CALL, func_id)
         return self.elf.function_return_type(func_name), None
 
-    def __analyse_expression_list(self, ast: Ast) -> int:
+    def __analyse_expression_list(self, ast: Ast, params_info: List[str]) -> int:
         """
         <expression-list> ::=
             <expression>{','<expression>}
+        params_info: List of types of parameters
         Return number of argument passed to callee
         """
-        # parameters: value in reversed order
         assert_ast_type(ast, AstType.EXPRESSION_LIST)
 
-        arg_count = 0
-        for child in ast.children:
-            if child.type == AstType.TOKEN:
-                continue
-            type_, _ = self.__analyse_expression(child)
-            arg_count += 1
-            if type_ == TokenType.VOID:
-                raise VoidTypeCalculationNotSupported(get_pos(child))
-        return arg_count
+        arguments = [x for x in ast.children if x.type == AstType.EXPRESSION]
+        for param_type, arg in zip(params_info, arguments):
+            arg_type, _ = self.__analyse_expression(arg)
+            # print(f'{arg_type} to {param_type}')
+            if arg_type != param_type:
+                # NOTE: better send a warning here
+                self.convert_from_type_to_type(to_type=param_type,
+                                               from_type=arg_type,
+                                               to_pos=get_pos(arg),
+                                               from_pos=get_pos(arg))
+        return len(arguments)
 
     def __analyse_parameter_clause(self, ast: Ast) -> list:
         """
@@ -704,8 +708,8 @@ class Analyser(object):
             j_instruction = self.__analyse_condition(condition)
             j_instruction_idx = self.elf.next_inst_idx()
             self.add_inst(j_instruction, 0)
-            statements_info = {**statements_info, **
-                               self.__analyse_statement(if_stat)}
+            statements_info = {**statements_info,
+                               **self.__analyse_statement(if_stat)}
 
             # if-else
             if ast.children[-2].token.tok_type == TokenType.ELSE:
@@ -714,8 +718,8 @@ class Analyser(object):
 
                 else_stat = ast.children[-1]
                 else_start_instruction_index = self.elf.next_inst_idx()
-                statements_info = {**statements_info, **
-                                   self.__analyse_statement(else_stat)}
+                statements_info = {**statements_info,
+                                   **self.__analyse_statement(else_stat)}
                 instruction_index_after_else = self.elf.next_inst_idx()
 
                 j_offset = else_start_instruction_index

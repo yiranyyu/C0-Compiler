@@ -14,7 +14,7 @@ class Constant(object):
 
 
 class Function(object):
-    def __init__(self, name: str, return_type: str, name_idx: int, params_info: List[str],  instructions: List[PCode]):
+    def __init__(self, name: str, return_type: str, name_idx: int, params_info: List[str], instructions: List[PCode]):
         self.name = name
         self.name_idx = name_idx
         self.return_type = return_type
@@ -62,13 +62,21 @@ class ELF(object):
         assert not self.has_function(
             func_name), 'Please check function not contained first'
         self.functions.append(
-            Function(name=func_name, return_type=return_type, name_idx=name_idx, params_info=params_info, instructions=[]))
+            Function(name=func_name, return_type=return_type, name_idx=name_idx, params_info=params_info,
+                     instructions=[]))
 
     def has_function(self, func_name: str) -> bool:
         for func in self.functions:
             if func.name == func_name:
                 return True
         return False
+
+    def function_params_info(self, func_name: str) -> List[str]:
+        assert self.has_function(
+            func_name), 'Please check function contained first'
+        for idx, func in enumerate(self.functions):
+            if func.name == func_name:
+                return func.param_info
 
     def function_index(self, func_name: str) -> int:
         assert self.has_function(
