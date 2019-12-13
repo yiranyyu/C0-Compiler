@@ -551,8 +551,10 @@ class Analyser(object):
         for param_type, arg in zip(params_info, arguments):
             arg_type, _ = self.__analyse_expression(arg)
             if arg_type != param_type:
-                raise ArgumentTypeNotMatchException(
-                    get_pos(arg), param_type, arg_type)
+                self.convert_from_type_to_type(to_type=param_type,
+                                               from_type=arg_type,
+                                               to_pos=get_pos(arg),
+                                               from_pos=get_pos(arg))
         return len(arguments)
 
     def __analyse_parameter_clause(self, ast: Ast) -> list:

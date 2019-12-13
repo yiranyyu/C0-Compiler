@@ -59,12 +59,6 @@ class ArgumentsNumberNotMatchException(AnalyserException):
                          f'Expected {expected} arguments but got {received}')
 
 
-class ArgumentTypeNotMatchException(AnalyserException):
-    def __init__(self, pos: tuple, expected: str, received: str):
-        super().__init__(pos,
-                         f'For function argument, expected {expected} but got type {received}')
-
-
 class VoidVariableException(AnalyserException):
     def __init__(self, pos: tuple):
         super().__init__(pos, f'Cannot define void or const void variable')
