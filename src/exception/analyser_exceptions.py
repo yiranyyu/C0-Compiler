@@ -13,12 +13,14 @@ class ConstantNotInitialized(AnalyserException):
 
 class DuplicateSymbol(AnalyserException):
     def __init__(self, pos: tuple, symbol_name):
-        super().__init__(pos, f'{symbol_name} already defined at current scope')
+        super().__init__(pos,
+                         f'{symbol_name} already defined at current scope')
 
 
 class UndefinedSymbol(AnalyserException):
     def __init__(self, pos: tuple, symbol_name: str):
-        super().__init__(pos, f'Symbol {symbol_name} is not declared before reference.')
+        super().__init__(pos,
+                         f'Symbol {symbol_name} is not declared before reference.')
 
 
 class NoReturnValueForNotVoidFunction(AnalyserException):
@@ -53,12 +55,14 @@ class AssignToConstant(AnalyserException):
 
 class ArgumentsNumberNotMatchException(AnalyserException):
     def __init__(self, pos: tuple, expected: int, received: int):
-        super().__init__(pos, f'Expected {expected} arguments but got {received}')
+        super().__init__(pos,
+                         f'Expected {expected} arguments but got {received}')
 
 
 class ArgumentTypeNotMatchException(AnalyserException):
     def __init__(self, pos: tuple, expected: str, received: str):
-        super().__init__(pos, f'For function argument, expected {expected} but got type {received}')
+        super().__init__(pos,
+                         f'For function argument, expected {expected} but got type {received}')
 
 
 class VoidVariableException(AnalyserException):

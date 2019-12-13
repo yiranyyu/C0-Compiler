@@ -253,7 +253,8 @@ class C0ASTParser(object):
                 self.__unread_token()
                 break
             ast.add_child(self.__parse_type_specifier())
-            ast.add_child(self.__assert_token(')', TokenType.RIGHT_PARENTHESES))
+            ast.add_child(self.__assert_token(')',
+                                              TokenType.RIGHT_PARENTHESES))
 
         ast.add_child(self.__parse_unary_expression())
         return ast
@@ -294,7 +295,8 @@ class C0ASTParser(object):
         if token.tok_type == TokenType.LEFT_PARENTHESES:
             ast.add_child(self.__assert_token('(', TokenType.LEFT_PARENTHESES))
             ast.add_child(self.__parse_expression())
-            ast.add_child(self.__assert_token(')', TokenType.RIGHT_PARENTHESES))
+            ast.add_child(self.__assert_token(')',
+                                              TokenType.RIGHT_PARENTHESES))
         elif token.tok_type == TokenType.INTEGER_LITERAL:
             ast.add_child(self.__parse_integer_literal())
         elif token.tok_type == TokenType.CHAR_LITERAL:
@@ -718,7 +720,8 @@ class C0ASTParser(object):
             ast.add_child(self.__assert_token('while', TokenType.WHILE))
             ast.add_child(self.__assert_token('(', TokenType.LEFT_PARENTHESES))
             ast.add_child(self.__parse_condition())
-            ast.add_child(self.__assert_token(')', TokenType.RIGHT_PARENTHESES))
+            ast.add_child(self.__assert_token(')',
+                                              TokenType.RIGHT_PARENTHESES))
             ast.add_child(self.__parse_statement())
         elif token.tok_type == TokenType.DO:
             # 'do' <statement> 'while' '(' <condition> ')' ';'
@@ -727,7 +730,8 @@ class C0ASTParser(object):
             ast.add_child(self.__assert_token('while', TokenType.WHILE))
             ast.add_child(self.__assert_token('(', TokenType.LEFT_PARENTHESES))
             ast.add_child(self.__parse_condition())
-            ast.add_child(self.__assert_token(')', TokenType.RIGHT_PARENTHESES))
+            ast.add_child(self.__assert_token(')',
+                                              TokenType.RIGHT_PARENTHESES))
             ast.add_child(self.__assert_token(';', TokenType.SEMICOLON))
         elif token.tok_type == TokenType.FOR:
             # 'for' '('<for-init-statement> [<condition>]';' [<for-update-expression>]')' <statement>
@@ -749,7 +753,8 @@ class C0ASTParser(object):
                 raise ExpectedSymbol(self.__prev_token().ed_pos, ')')
             if token.tok_type != TokenType.RIGHT_PARENTHESES:
                 ast.add_child(self.__parse_for_update_expression())
-            ast.add_child(self.__assert_token(')', TokenType.RIGHT_PARENTHESES))
+            ast.add_child(self.__assert_token(')',
+                                              TokenType.RIGHT_PARENTHESES))
             ast.add_child(self.__parse_statement())
 
         return ast

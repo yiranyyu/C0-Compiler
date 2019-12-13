@@ -473,7 +473,8 @@ class Analyser(object):
             if symbol_name not in self.symbol_table:
                 raise UndefinedSymbol(get_pos(ast.first_child()), symbol_name)
             if self.symbol_table.is_function(symbol_name):
-                raise FunctionTypeCalculationNotSupported(get_pos(ast.first_child()), symbol_name)
+                raise FunctionTypeCalculationNotSupported(
+                    get_pos(ast.first_child()), symbol_name)
             symbol_offset = self.symbol_table.get_offset(symbol_name)
             symbol_type = self.symbol_table.get_type(symbol_name)
             self.add_inst(PCode.LOADA, *symbol_offset)
@@ -550,7 +551,8 @@ class Analyser(object):
         for param_type, arg in zip(params_info, arguments):
             arg_type, _ = self.__analyse_expression(arg)
             if arg_type != param_type:
-                raise ArgumentTypeNotMatchException(get_pos(arg), param_type, arg_type)
+                raise ArgumentTypeNotMatchException(
+                    get_pos(arg), param_type, arg_type)
         return len(arguments)
 
     def __analyse_parameter_clause(self, ast: Ast) -> list:
@@ -921,7 +923,8 @@ class Analyser(object):
         if constness:
             raise AssignToConstant(get_pos(ast.children[2]))
         elif self.symbol_table.is_function(symbol_name):
-            raise FunctionTypeCalculationNotSupported(get_pos(ast.children[2]), symbol_name)
+            raise FunctionTypeCalculationNotSupported(
+                get_pos(ast.children[2]), symbol_name)
         else:
             type_ = self.symbol_table.get_type(symbol_name)
             offset = self.symbol_table.get_offset(symbol_name)
@@ -955,7 +958,8 @@ class Analyser(object):
         if self.symbol_table.is_const(symbol_name):
             raise AssignToConstant(get_pos(ast.first_child()))
         elif self.symbol_table.is_function(symbol_name):
-            raise FunctionTypeCalculationNotSupported(get_pos(ast.first_child()), symbol_name)
+            raise FunctionTypeCalculationNotSupported(
+                get_pos(ast.first_child()), symbol_name)
 
         symbol_type = self.symbol_table.get_type(symbol_name)
         symbol_offset = self.symbol_table.get_offset(symbol_name)

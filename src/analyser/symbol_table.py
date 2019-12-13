@@ -164,9 +164,11 @@ class SymbolTable(object):
             base_offset = 0
             stack_level = 0
         else:
-            base_offset = 0 if new_stack else self.current_level().next_offset
-            stack_level = (1 if new_stack else 0) + self.current_level().function_level
-        self.level_tables.insert(0, ScopeLevelSymbolTable(base_offset, stack_level))
+            level_table = self.current_level()
+            base_offset = 0 if new_stack else level_table.next_offset
+            stack_level = (1 if new_stack else 0) + level_table.function_level
+        self.level_tables.insert(0,
+                                 ScopeLevelSymbolTable(base_offset, stack_level))
 
     def exit_level(self):
         # print(f'Exit level, prev {len(self.level_tables)} tables')
