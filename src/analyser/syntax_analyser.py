@@ -189,8 +189,12 @@ class Analyser(object):
                 self.add_inst(PCode.D2I, at_idx=at_idx)
             else:
                 assert to_type == TokenType.CHAR
-                self.add_inst(PCode.D2I, at_idx=at_idx)
-                self.add_inst(PCode.I2C, at_idx=at_idx + 1)
+                if at_idx is not None:
+                    self.add_inst(PCode.D2I, at_idx=at_idx)
+                    self.add_inst(PCode.I2C, at_idx=at_idx + 1)
+                else:
+                    self.add_inst(PCode.D2I)
+                    self.add_inst(PCode.I2C)
 
     def __analyse_init_declarator(self, ast: Ast, type_info: dict):
         """
@@ -227,9 +231,9 @@ class Analyser(object):
                                                to_pos=symbol_pos,
                                                from_pos=get_pos(ast.children[1]))
             # store (new) value
-            if type_ in [TokenType.INT, TokenType.CHAR]:
+            if symbol_type in [TokenType.INT, TokenType.CHAR]:
                 self.add_inst(PCode.ISTORE)
-            elif type_ == TokenType.DOUBLE:
+            elif symbol_type == TokenType.DOUBLE:
                 self.add_inst(PCode.DSTORE)
             else:
                 raise UnknownVariableType(get_pos(ast.children[1]), type_)
