@@ -86,11 +86,11 @@ class Token(object):
             raise Integer32Overflow(self.st_pos[0], self.st_pos[1], integer)
 
     def __init_value(self):
-        if self.tok_type == TokenType.FLOAT_LITERAL:
+        if self.tok_type == TokenType.INTEGER_LITERAL:
             integer = eval(self.literal)
             self.__check_int_overflow(integer)
             return integer
-        elif self.tok_type == TokenType.INTEGER_LITERAL:
+        elif self.tok_type == TokenType.FLOAT_LITERAL:
             return eval(self.literal)
         elif self.tok_type == TokenType.CHAR_LITERAL:
             c = eval(self.literal)
