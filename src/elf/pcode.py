@@ -311,11 +311,10 @@ class PCode(object):
         assert (len(self.operands) == operands), error_msg
 
     def __str__(self):
-        output = '\033[94m'
+        output = ''
         output += self.operator
         for idx, x in enumerate(self.operands):
             if idx:
                 output += ','
             output += f' {x}'
-        output += '\033[0m'
         return output
