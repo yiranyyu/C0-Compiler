@@ -1,5 +1,10 @@
 # C0-Compiler
 
+本项目为 C0 语言的一个基于 Python 的编译器前端，提供了词法分析、语法分析、语义分析和 PCode 生成的功能。具体文法和语义等要求参照背景说明。
+
+感谢助教提供的实验，实现 C0 很有意思，尤其是用 Python!
+
+
 ## How to start
 
 For Linux or MacOS with python3:
@@ -35,6 +40,12 @@ python ./src/cc0.py -s <input-file> -o <output-file>
 # for more options
 python ./src/cc0.py -h
 ```
+
+## 背景
+
+* C0 完整文法和语义参照[这里](https://github.com/BUAA-SE-Compiling/c0-handbook)
+* 中间指令执行环境标准参照[这里](https://github.com/BUAA-SE-Compiling/c0-vm-standards)
+* 一个可行的运行环境实现方案可以看[这里](https://github.com/BUAA-SE-Compiling/c0-vm-cpp)
 
 ## 完成度
 
